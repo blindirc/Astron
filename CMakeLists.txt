@@ -177,6 +177,8 @@ if(BUILD_DBSERVER)
 		src/database/DatabaseBackend.cpp
 		src/database/DBOperation.h
 		src/database/DBOperation.cpp
+		src/database/DBOperationQueue.h
+		src/database/DBOperationQueue.cpp
 		src/database/OldDatabaseBackend.h
 		src/database/OldDatabaseBackend.cpp
 		src/database/DBBackendFactory.h
@@ -370,6 +372,8 @@ set(UTIL_FILES
 	src/util/EventSender.h
 	src/util/password_prompt.cpp
 	src/util/password_prompt.h
+	src/util/Timeout.cpp
+	src/util/Timeout.h
 )
 
 set(NET_FILES
