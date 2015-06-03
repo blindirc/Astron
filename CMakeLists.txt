@@ -94,26 +94,6 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")		### Linux requires pthreads
 	set(CMAKE_CXX_FLAGS "-pthread")
 endif()
 
-### YAML Depedency -- required by config, used by yaml database ###
-set(YAMLCPP_USE_STATIC_LIBS ON CACHE BOOL "If true, will try to find static YamlCpp first instead of dynamic.")
-find_package(YamlCpp)
-if(NOT YAMLCPP_FOUND)
-	set(YAMLCPP_USE_STATIC_LIBS OFF CACHE BOOL "If true, will try to find static YamlCpp first instead of dynamic.")
-	find_package(YamlCpp)
-endif()
-if(YAMLCPP_FOUND)
-	include_directories(${YAMLCPP_INCLUDE_DIR})
-	link_directories(${YAMLCPP_LIBRARY_DIR})
-	message(STATUS "Found the following YamlCpp library:")
-	message("  ${YAMLCPP_LIBRARY}\n")
-else()
-	message(FATAL_ERROR "You need yamlcpp to build this, build yamlcpp in the 'dependencies/' directory, or install it as a system package")
-endif()
-
-set(BUILD_YAML ON) # ON CACHE BOOL "Stuff"
-if(BUILD_YAML)
-	add_definitions(-DASTRON_WITH_YAML)
-endif()
 
 ### BOOST Dependency -- required by yaml-cpp and networking ###
 set(Boost_USE_STATIC_LIBS ON CACHE BOOL "If true, will try to find static Boost first instead of dynamic.")
@@ -165,168 +145,6 @@ if(BUILD_TESTS)
 		src/tests/MDParticipantTest.cpp
 		src/tests/MDPerformanceTest.cpp
 	)
-endif()
-
-set(BUILD_DBSERVER ON CACHE BOOL "If on, Database Server will be built into binary")
-if(BUILD_DBSERVER)
-	add_definitions(-DBUILD_DBSERVER)
-	set(DBSERVER_FILES
-		src/database/DatabaseServer.h
-		src/database/DatabaseServer.cpp
-		src/database/DatabaseBackend.h
-		src/database/DatabaseBackend.cpp
-		src/database/DBOperation.h
-		src/database/DBOperation.cpp
-		src/database/DBOperationQueue.h
-		src/database/DBOperationQueue.cpp
-		src/database/OldDatabaseBackend.h
-		src/database/OldDatabaseBackend.cpp
-		src/database/DBBackendFactory.h
-		src/database/DBBackendFactory.cpp
-	)
-
-	set(BUILD_DB_YAML ON CACHE BOOL "If on, will support a YAML-based database (for development)")
-	if(BUILD_DB_YAML)
-		add_definitions(-DBUILD_DB_YAML)
-		set(DBSERVER_FILES
-			${DBSERVER_FILES}
-			src/database/YAMLDatabase.cpp
-		)
-		add_test(db_yaml "${PYTHON2_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/test/test_dbserver_yaml.py")
-		add_test(validate_config_dbyaml "${PYTHON2_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/test/test_config_dbyaml.py")
-		set(PYTHON_TESTS ${PYTHON_TESTS} db_yaml validate_config_dbyaml)
-	endif()
-
-	### Check for soci and if available, compile SQL database support ###
-	find_package(Soci COMPONENTS postgresql mysql sqlite3)
-
-	if(SOCI_FOUND)
-		message(STATUS "Found the following Soci library:")
-		message("  ${SOCI_LIBRARY}\n")
-
-		message(STATUS "Found the following Soci plugins:")
-		### PostgreSQL support ##
-		if(SOCI_postgresql_FOUND)
-			set(BUILD_DB_POSTGRESQL ON CACHE BOOL "If on, will support PostgreSQL.")
-			message(STATUS "  PostgreSQL found")
-			message("    ${SOCI_postgresql_PLUGIN}")
-		else()
-			unset(BUILD_DB_POSTGRESQL CACHE)
-			message(STATUS "  PostgreSQL not found")
-			message("    won't add PostgreSQl support")
-		endif()
-
-		### MySQL support ###
-		if(SOCI_mysql_FOUND)
-			set(BUILD_DB_MYSQL ON CACHE BOOL "If on, will support MySQL.")
-			message(STATUS "  MySQL found")
-			message("    ${SOCI_mysql_PLUGIN}")
-		else()
-			unset(BUILD_DB_MYSQL CACHE)
-			message(STATUS "  MySQL not found")
-			message("    won't add MySQL support")
-		endif()
-
-		### SQLite3 support ###
-		if(SOCI_sqlite3_FOUND)
-			set(BUILD_DB_SQLITE ON CACHE BOOL "If on, will support SQLite3.")
-			message(STATUS "  SQLite3 found")
-			message("    ${SOCI_sqlite3_PLUGIN}")
-		else()
-			unset(BUILD_DB_SQLITE CACHE)
-			message(STATUS "  SQLite3 not found")
-			message("    won't add SQLite3 support")
-		endif()
-
-		message("")
-
-		### Add files to compiler and linker ###
-		if(BUILD_DB_SQLITE OR BUILD_DB_MYSQL OR BUILD_DB_POSTGRESQL)
-			add_definitions(-DBUILD_DB_SQL)
-			include_directories(${SOCI_INCLUDE_DIRS})
-			link_directories(${SOCI_LIBRARY_DIR})
-			set(DBSERVER_FILES
-				${DBSERVER_FILES}
-				src/database/SociSQLDatabase.cpp
-			)
-			set(SOCI_LIBRARY_NAMES soci_core dl)
-			if(BUILD_DB_POSTGRESQL)
-				set(SOCI_LIBRARY_NAMES ${SOCI_LIBRARY_NAMES} pq)
-				add_test(db_pgsql "${PYTHON2_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/test/test_dbserver_postgres.py")
-				add_test(validate_config_dbpostgres
-					 "${PYTHON2_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/test/test_config_dbpostgres.py")
-				set(PYTHON_TESTS ${PYTHON_TESTS} db_pgsql validate_config_dbpostgres)
-			endif()
-		endif()
-	else()
-		message(STATUS "Soci not found")
-		message("  won't add SQL support")
-		unset(BUILD_DB_MYSQL CACHE)
-		unset(BUILD_DB_POSTGRESQL CACHE)
-		unset(BUILD_DB_SQLITE CACHE)
-	endif()
-else()
-	unset(BUILD_DB_FILESYSTEM CACHE)
-	unset(BUILD_DB_YAML CACHE)
-	unset(BUILD_DB_MYSQL CACHE)
-	unset(BUILD_DB_POSTGRESQL CACHE)
-	unset(BUILD_DB_SQLITE CACHE)
-endif()
-
-set(BUILD_STATESERVER ON CACHE BOOL "If on, State Server will be built into binary")
-if(BUILD_STATESERVER)
-	set(STATESERVER_FILES
-		src/stateserver/StateServer.cpp
-		src/stateserver/StateServer.h
-		src/stateserver/DistributedObject.cpp
-		src/stateserver/DistributedObject.h
-	)
-	add_test(stateserver "${PYTHON2_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/test/test_stateserver.py")
-	add_test(validate_config_stateserver "${PYTHON2_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/test/test_config_stateserver.py")
-	set(PYTHON_TESTS ${PYTHON_TESTS} stateserver validate_config_stateserver)
-
-	set(BUILD_STATESERVER_DBSS ON CACHE BOOL "If on, the Database-State Server will be built into binary")
-	if(BUILD_STATESERVER_DBSS)
-		set(STATESERVER_FILES
-			${STATESERVER_FILES}
-			src/stateserver/DBStateServer.h
-			src/stateserver/DBStateServer.cpp
-			src/stateserver/LoadingObject.h
-			src/stateserver/LoadingObject.cpp
-		)
-		add_test(dbss "${PYTHON2_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/test/test_dbss.py")
-		add_test(validate_config_dbss "${PYTHON2_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/test/test_config_dbss.py")
-		set(PYTHON_TESTS ${PYTHON_TESTS} dbss validate_config_dbss)
-	endif()
-else()
-	unset(BUILD_STATESERVER_DBSS CACHE)
-endif()
-
-set(BUILD_EVENTLOGGER ON CACHE BOOL "If on, Event Logger will be built into binary")
-if(BUILD_EVENTLOGGER)
-	set(EVENTLOGGER_FILES
-		src/eventlogger/EventLogger.cpp
-		src/eventlogger/EventLogger.h
-	)
-	add_test(eventlogger "${PYTHON2_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/test/test_eventlogger.py")
-	add_test(validate_config_eventlogger "${PYTHON2_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/test/test_config_eventlogger.py")
-endif()
-
-set(BUILD_CLIENTAGENT ON CACHE BOOL "If on, Client Agent will be built into binary")
-if(BUILD_CLIENTAGENT)
-	set(CLIENTAGENT_FILES
-		src/clientagent/Client.h
-		src/clientagent/Client.cpp
-		src/clientagent/ClientAgent.h
-		src/clientagent/ClientAgent.cpp
-		src/clientagent/ClientMessages.h
-		src/clientagent/ClientFactory.cpp
-		src/clientagent/ClientFactory.h
-		src/clientagent/AstronClient.cpp
-	)
-	add_test(clientagent "${PYTHON2_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/test/test_clientagent.py")
-	add_test(validate_config_clientagent "${PYTHON2_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/test/test_config_clientagent.py")
-	set(PYTHON_TESTS ${PYTHON_TESTS} clientagent validate_config_clientagent)
 endif()
 
 ### Define core components ###
@@ -401,11 +219,7 @@ add_executable(astrond
 	${MESSAGEDIRECTOR_FILES}
 	${UTIL_FILES}
   ${NET_FILES}
-	${STATESERVER_FILES}
-	${EVENTLOGGER_FILES}
-	${CLIENTAGENT_FILES}
 	${TEST_FILES}
-	${DBSERVER_FILES}
 )
 
 ### Setup source groups and defines for configurables ###
@@ -414,22 +228,6 @@ source_group("Config" FILES ${CONFIG_FILES})
 source_group("Util" FILES ${UTIL_FILES})
 source_group("MessageDirector" FILES ${MESSAGEDIRECTOR_FILES})
 source_group("Net" FILES ${NET_FILES})
-if(STATESERVER_FILES)
-	add_definitions(-DBUILD_STATESERVER)
-	source_group("StateServer" FILES ${STATESERVER_FILES})
-endif()
-if(EVENTLOGGER_FILES)
-	add_definitions(-DBUILD_EVENTLOGGER)
-	source_group("EventLogger" FILES ${EVENTLOGGER_FILES})
-endif()
-if(CLIENTAGENT_FILES)
-	add_definitions(-DBUILD_CLIENTAGENT)
-	source_group("ClientAgent" FILES ${CLIENTAGENT_FILES})
-endif()
-if(DBSERVER_FILES)
-	add_definitions(-DBUILD_STATESERVER_DBSS)
-	source_group("DatabaseServer" FILES ${DBSERVER_FILES})
-endif()
 if(TEST_FILES)
 	source_group("DaemonTests" FILES ${TEST_FILES})
 endif()
@@ -442,10 +240,17 @@ endif()
 #endforeach(sourcefile)
 #source_group("Header Files" FILES ${ASTROND_HEADERS})
 
+
 add_subdirectory(src/dclass)
 
+#Default Modules
+add_subdirectory(src/stateserver)
+add_subdirectory(src/eventlogger)
+add_subdirectory(src/database)
+add_subdirectory(src/clientagent)
+
 add_dependencies(astrond dclass)
-target_link_libraries(astrond dclass ${OPENSSL_LIBRARIES} ${YAMLCPP_LIBNAME} ${Boost_LIBRARIES} ${SOCI_LIBRARY_NAMES})
+target_link_libraries(astrond dclass ${OPENSSL_LIBRARIES} ${YAMLCPP_LIBNAME} ${Boost_LIBRARIES})
 
 ### Handle some final testing configuration ###
 if(USE_32BIT_DATAGRAMS)
