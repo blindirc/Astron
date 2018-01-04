@@ -7,8 +7,6 @@
 #include "DatabaseBackend.h"
 #include "DBBackendFactory.h"
 
-using namespace std;
-
 static RoleFactoryItem<DatabaseServer> dbserver_fact("database");
 
 RoleConfigGroup dbserver_config("database");
@@ -39,7 +37,7 @@ DatabaseServer::DatabaseServer(RoleConfig roleconfig) : Role(roleconfig),
                        min_id.get_rval(generate), max_id.get_rval(generate));
 
     // Initialize DatabaseServer log
-    stringstream log_title;
+    std::stringstream log_title;
     log_title << "Database(" << m_control_channel << ")";
     m_log = new LogCategory("db", log_title.str());
     set_con_name(log_title.str());
@@ -47,7 +45,7 @@ DatabaseServer::DatabaseServer(RoleConfig roleconfig) : Role(roleconfig),
     // Check to see the backend was instantiated
     if(!m_db_backend) {
         m_log->fatal() << "No database backend of type '"
-                       << db_backend_type.get_rval(backend) << "' exists." << endl;
+                       << db_backend_type.get_rval(backend) << "' exists." << std::endl;
         astron_shutdown(1);
     }
 
@@ -92,7 +90,7 @@ void DatabaseServer::handle_datagram(DatagramHandle, DatagramIterator &dgi)
     }
     break;
     default:
-        m_log->error() << "Recieved unknown MsgType: " << msg_type << endl;
+        m_log->error() << "Recieved unknown MsgType: " << msg_type << std::endl;
         return;
     };
 
@@ -109,7 +107,7 @@ void DatabaseServer::handle_operation(DBOperation *op)
         return;
     }
 
-    unique_lock<recursive_mutex> guard(m_lock);
+    std::unique_lock<std::recursive_mutex> guard(m_lock);
 
     DBOperationQueue &queue = m_queues[op->doid()];
 
@@ -126,7 +124,7 @@ void DatabaseServer::clear_operation(const DBOperation *op)
         return;
     }
 
-    unique_lock<recursive_mutex> guard(m_lock);
+    std::unique_lock<std::recursive_mutex> guard(m_lock);
 
     DBOperationQueue &queue = m_queues[op->doid()];
 

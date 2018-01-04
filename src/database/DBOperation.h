@@ -11,14 +11,20 @@ class DatabaseServer;
 
 // This represents a "snapshot" of a particular object. It is essentially just a
 // dclass and a map of fields.
-class DBObjectSnapshot
+struct DBObjectSnapshot
 {
-  public:
     const dclass::Class *m_dclass;
 
     // Absense from this map indicates that the field is either not present
     // on the object, or was not requested by the corresponding DBOperation.
     FieldValues m_fields;
+
+    // has_field returns true if the specified dcField exists in the fields
+    // map, otherwise false
+    inline bool has_field(const dclass::Field *field) const
+    {
+        return this->m_fields.find(field) != this->m_fields.end();
+    }
 };
 
 // DBOperation represents any single operation that can be asynchronously
@@ -97,11 +103,25 @@ class DBOperation
         return m_set_fields;
     }
 
+    // has_set_field returns true if the specified dcField exists in the set_fields
+    // map, otherwise false
+    inline bool has_set_field(const dclass::Field *field) const
+    {
+        return this->m_set_fields.find(field) != this->m_set_fields.end();
+    }
+
     // criteria_fields must be equal (or absent) for the change to complete atomically.
     // Only meaningful in the case of UPDATE_FIELDS.
     const FieldValues& criteria_fields() const
     {
         return m_criteria_fields;
+    }
+
+    // has_criteria_field returns true if the specified dcField exists in the criteria_fields
+    // map, otherwise false
+    inline bool has_criteria_field(const dclass::Field *field) const
+    {
+        return this->m_criteria_fields.find(field) != this->m_criteria_fields.end();
     }
 
     // === CONVENIENCE FUNCTIONS ===
@@ -158,7 +178,7 @@ class DBOperation
     // * The requested object is absent.
     // * The frontend requested modification of a field that is not valid
     //   for the class.
-    virtual void on_failure() { }
+    virtual void on_failure() = 0;
 
     // This is used in the case of UPDATE_FIELDS operations where the fields
     // in m_criteria_fields were NOT satisfied. The backend provides a snapshot
@@ -207,59 +227,59 @@ class DBOperation
     bool populate_get_fields(DatagramIterator &dgi, uint16_t field_count);
 };
 
-class DBOperationCreate : public DBOperation
+class DBOperationCreate final : public DBOperation
 {
   public:
     DBOperationCreate(DatabaseServer *db) : DBOperation(db) { }
-    virtual bool initialize(channel_t sender, uint16_t msg_type, DatagramIterator &dgi);
-    virtual void on_complete(doid_t doid);
-    virtual void on_failure();
+    bool initialize(channel_t sender, uint16_t msg_type, DatagramIterator &dgi) override;
+    void on_complete(doid_t doid) override;
+    void on_failure() override;
 
   private:
     uint32_t m_context;
 };
-class DBOperationDelete : public DBOperation
+class DBOperationDelete final : public DBOperation
 {
   public:
     DBOperationDelete(DatabaseServer *db) : DBOperation(db) { }
-    virtual bool initialize(channel_t sender, uint16_t msg_type, DatagramIterator &dgi);
-    virtual void on_complete();
-    virtual void on_failure();
+    bool initialize(channel_t sender, uint16_t msg_type, DatagramIterator &dgi) override;
+    void on_complete() override;
+    void on_failure() override;
 };
-class DBOperationGet : public DBOperation
+class DBOperationGet final : public DBOperation
 {
   public:
     DBOperationGet(DatabaseServer *db) : DBOperation(db) { }
-    virtual bool initialize(channel_t sender, uint16_t msg_type, DatagramIterator &dgi);
-    virtual bool verify_class(const dclass::Class *dclass);
-    virtual bool is_independent_of(const DBOperation *other) const;
-    virtual void on_complete(DBObjectSnapshot *snapshot);
-    virtual void on_failure();
+    bool initialize(channel_t sender, uint16_t msg_type, DatagramIterator &dgi) override;
+    bool verify_class(const dclass::Class *dclass) override;
+    bool is_independent_of(const DBOperation *other) const override;
+    void on_complete(DBObjectSnapshot *snapshot) override;
+    void on_failure() override;
 
   private:
     uint32_t m_context;
     uint16_t m_resp_msgtype;
 };
-class DBOperationSet : public DBOperation
+class DBOperationSet final : public DBOperation
 {
   public:
     DBOperationSet(DatabaseServer *db) : DBOperation(db) { }
-    virtual bool initialize(channel_t sender, uint16_t msg_type, DatagramIterator &dgi);
-    virtual bool verify_class(const dclass::Class *dclass);
-    virtual bool is_independent_of(const DBOperation *other) const;
-    virtual void on_complete();
-    virtual void on_failure();
+    bool initialize(channel_t sender, uint16_t msg_type, DatagramIterator &dgi) override;
+    bool verify_class(const dclass::Class *dclass) override;
+    bool is_independent_of(const DBOperation *other) const override;
+    void on_complete() override;
+    void on_failure() override;
 };
-class DBOperationUpdate : public DBOperation
+class DBOperationUpdate final : public DBOperation
 {
   public:
     DBOperationUpdate(DatabaseServer *db) : DBOperation(db) { }
-    virtual bool initialize(channel_t sender, uint16_t msg_type, DatagramIterator &dgi);
-    virtual bool verify_class(const dclass::Class *dclass);
-    virtual bool is_independent_of(const DBOperation *other) const;
-    virtual void on_complete();
-    virtual void on_failure();
-    virtual void on_criteria_mismatch(DBObjectSnapshot *);
+    bool initialize(channel_t sender, uint16_t msg_type, DatagramIterator &dgi) override;
+    bool verify_class(const dclass::Class *dclass) override;
+    bool is_independent_of(const DBOperation *other) const override;
+    void on_complete() override;
+    void on_failure() override;
+    void on_criteria_mismatch(DBObjectSnapshot *) override;
 
   private:
     uint32_t m_context;

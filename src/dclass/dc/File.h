@@ -63,6 +63,11 @@ class File
     inline Field* get_field_by_id(unsigned int id);
     inline const Field* get_field_by_id(unsigned int id) const;
 
+    // Operator overload for indexing
+    inline Field* operator[](unsigned int id) {
+        return id < m_fields_by_id.size() ? m_fields_by_id[id] : nullptr;
+    }
+
     // get_num_imports returns the number of imports in the file.
     inline size_t get_num_imports() const;
     // get_import retuns the <n>th import in the file.

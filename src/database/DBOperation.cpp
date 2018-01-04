@@ -20,11 +20,11 @@ void DBOperation::announce_fields(const FieldValues& fields)
     // Calculate the fields that we are sending in our response:
     FieldValues changed_fields;
     FieldSet deleted_fields;
-    for(auto it = fields.begin(); it != fields.end(); ++it) {
-        if(it->second.empty())
-            deleted_fields.insert(it->first);
+    for(const auto& [field, data] : fields) {
+        if(data.empty())
+            deleted_fields.insert(field);
         else
-            changed_fields[it->first] = it->second;
+            changed_fields[field] = data;
     }
 
     // Send delete fields broadcast
@@ -35,12 +35,13 @@ void DBOperation::announce_fields(const FieldValues& fields)
                                   multi ? DBSERVER_OBJECT_DELETE_FIELDS :
                                   DBSERVER_OBJECT_DELETE_FIELD);
         update->add_doid(m_doid);
-        if(multi) {
+
+        if(multi)
             update->add_uint16(deleted_fields.size());
-        }
-        for(auto it = deleted_fields.begin(); it != deleted_fields.end(); ++it) {
-            update->add_uint16((*it)->get_id());
-        }
+
+        for(const auto& field : deleted_fields)
+            update->add_uint16(field->get_id());
+
         m_dbserver->route_datagram(update);
     }
 
@@ -55,9 +56,9 @@ void DBOperation::announce_fields(const FieldValues& fields)
         if(multi) {
             update->add_uint16(changed_fields.size());
         }
-        for(auto it = changed_fields.begin(); it != changed_fields.end(); ++it) {
-            update->add_uint16(it->first->get_id());
-            update->add_data(it->second);
+        for(const auto& [field, data] : changed_fields) {
+            update->add_uint16(field->get_id());
+            update->add_data(data);
         }
         m_dbserver->route_datagram(update);
     }
@@ -80,9 +81,9 @@ bool DBOperation::verify_fields(const dclass::Class *dclass, const FieldSet& fie
 bool DBOperation::verify_fields(const dclass::Class *dclass, const FieldValues& fields)
 {
     bool valid = true;
-    for(auto it = fields.begin(); it != fields.end(); ++it) {
-        if(!dclass->get_field_by_id(it->first->get_id())) {
-            m_dbserver->m_log->warning() << "Field " << it->first->get_name()
+    for(const auto& [field, data] : fields) {
+        if(!dclass->get_field_by_id(field->get_id())) {
+            m_dbserver->m_log->warning() << "Field " << field->get_name()
                                          << " does not belong to object " << m_doid
                                          << "(" << dclass->get_name() << ")\n";
             valid = false;
@@ -94,7 +95,7 @@ bool DBOperation::verify_fields(const dclass::Class *dclass, const FieldValues& 
 bool DBOperation::populate_set_fields(DatagramIterator &dgi, uint16_t field_count,
                                       bool delete_values, bool check_values)
 {
-    for(uint16_t i = 0; i < field_count; ++i) {
+    for(uint16_t ii = 0; ii < field_count; ++ii) {
         uint16_t field_id = dgi.read_uint16();
         const Field *field = g_dcf->get_field_by_id(field_id);
         if(!field) {
@@ -141,7 +142,7 @@ bool DBOperation::populate_set_fields(DatagramIterator &dgi, uint16_t field_coun
 
 bool DBOperation::populate_get_fields(DatagramIterator &dgi, uint16_t field_count)
 {
-    for(uint16_t i = 0; i < field_count; ++i) {
+    for(uint16_t ii = 0; ii < field_count; ++ii) {
         // Read the field from the datagram
         uint16_t field_id = dgi.read_uint16();
         const Field *field = g_dcf->get_field_by_id(field_id);
@@ -325,8 +326,8 @@ bool DBOperationGet::is_independent_of(const DBOperation *other) const
 
         // Test if any of the fields we're getting is a field changed by
         // the other operation...
-        for(auto it = get_fields().begin(); it != get_fields().end(); ++it) {
-            if(other->set_fields().find(*it) != other->set_fields().end()) {
+        for(const auto& field : this->get_fields()) {
+            if(other->has_set_field(field)) {
                 return false;
             }
         }
@@ -366,10 +367,10 @@ void DBOperationGet::on_complete(DBObjectSnapshot *snapshot)
         response_fields = snapshot->m_fields;
     } else {
         // Send only what was requested:
-        for(auto it = m_get_fields.begin(); it != m_get_fields.end(); ++it) {
-            auto it2 = snapshot->m_fields.find(*it);
-            if(it2 != snapshot->m_fields.end()) {
-                response_fields[it2->first] = it2->second;
+        for(const auto& field : m_get_fields) {
+            const auto result = snapshot->m_fields.find(field);
+            if(result != snapshot->m_fields.end()) {
+                response_fields[result->first] = result->second;
             }
         }
     }
@@ -398,9 +399,9 @@ void DBOperationGet::on_complete(DBObjectSnapshot *snapshot)
     }
 
     resp->add_uint16(response_fields.size());
-    for(auto it = response_fields.begin(); it != response_fields.end(); ++it) {
-        resp->add_uint16(it->first->get_id());
-        resp->add_data(it->second);
+    for(const auto& field_map : response_fields) {
+        resp->add_uint16(field_map.first->get_id());
+        resp->add_data(field_map.second);
     }
 
     m_dbserver->route_datagram(resp);
@@ -464,8 +465,8 @@ bool DBOperationSet::is_independent_of(const DBOperation *other) const
         // The operations are independent as long as they're on different
         // fields.
 
-        for(auto it = set_fields().begin(); it != set_fields().end(); ++it) {
-            if(other->set_fields().find(it->first) != other->set_fields().end()) {
+        for(const auto& [field, data] : this->set_fields()) {
+            if(other->has_set_field(field)) {
                 return false;
             }
         }
@@ -476,9 +477,8 @@ bool DBOperationSet::is_independent_of(const DBOperation *other) const
     case UPDATE_FIELDS:
         // We must be independent of the other operation's fields *AND*
         // their criteria.
-        for(auto it = set_fields().begin(); it != set_fields().end(); ++it) {
-            if(other->set_fields().find(it->first) != other->set_fields().end() ||
-               other->criteria_fields().find(it->first) != other->criteria_fields().end()) {
+        for(const auto& [field, data] : set_fields()) {
+            if(other->has_set_field(field) || other->has_criteria_field(field)) {
                 return false;
             }
         }
@@ -579,19 +579,18 @@ bool DBOperationUpdate::is_independent_of(const DBOperation *other) const
         // conflict with their set fields/criteria, but our *criteria* may
         // not overlap with their set fields. It *is* okay, however, to
         // have a criteria overlap.
-        for(auto it = set_fields().begin(); it != set_fields().end(); ++it) {
-            if(other->set_fields().find(it->first) != other->set_fields().end() ||
-               other->criteria_fields().find(it->first) != other->criteria_fields().end()) {
+        for(const auto& [field, data] : this->set_fields()) {
+            if(other->has_set_field(field) || other->has_criteria_field(field)) {
                 return false;
             }
         }
 
         // Our set fields don't conflict, let's see if their set fields
         // conflict.
-        for(auto it = other->set_fields().begin(); it != other->set_fields().end(); ++it) {
+        for(const auto& [field, data] : other->set_fields()) {
             // We're only testing against our criteria_fields()... The
             // set_fields()<->set_fields() intersection was already tested.
-            if(criteria_fields().find(it->first) != criteria_fields().end()) {
+            if(this->has_criteria_field(field)) {
                 return false;
             }
         }
@@ -645,8 +644,8 @@ void DBOperationUpdate::on_criteria_mismatch(DBObjectSnapshot *snapshot)
     // Calculate the fields that we are sending in our response:
     FieldValues mismatched_fields;
 
-    for(auto it = m_criteria_fields.begin(); it != m_criteria_fields.end(); ++it) {
-        auto it2 = snapshot->m_fields.find(it->first);
+    for(const auto& [field, data] : m_criteria_fields) {
+        const auto it2 = snapshot->m_fields.find(field);
         if(it2 != snapshot->m_fields.end() && !it2->second.empty()) {
             mismatched_fields[it2->first] = it2->second;
         }
@@ -656,9 +655,9 @@ void DBOperationUpdate::on_criteria_mismatch(DBObjectSnapshot *snapshot)
         resp->add_uint16(mismatched_fields.size());
     }
 
-    for(auto it = mismatched_fields.begin(); it != mismatched_fields.end(); ++it) {
-        resp->add_uint16(it->first->get_id());
-        resp->add_data(it->second);
+    for(const auto& [field, data] : mismatched_fields) {
+        resp->add_uint16(field->get_id());
+        resp->add_data(data);
     }
 
     m_dbserver->route_datagram(resp);

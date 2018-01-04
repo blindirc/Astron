@@ -66,14 +66,14 @@ if(CMAKE_GENERATOR STREQUAL Xcode)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-	add_definitions(-std=c++11)
+	add_definitions(-std=c++17)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
 	execute_process(COMMAND "${CMAKE_C_COMPILER}" -dumpversion OUTPUT_VARIABLE GCC_VERSION)
 	message(STATUS "GCC Version: ${GCC_VERSION}")
 	if(GCC_VERSION VERSION_GREATER 4.7 OR GCC_VERSION VERSION_EQUAL 4.7)
-		add_definitions(-std=c++11) # Enable the new C++ standard
+		add_definitions(-std=c++17) # Enable the new C++ standard
 	else()
 		add_definitions(-std=c++0x) # Enable the new C++ standard
 	endif()

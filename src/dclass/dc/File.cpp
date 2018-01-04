@@ -19,15 +19,8 @@ File::File()
 //destructor
 File::~File()
 {
-    for(auto it = m_classes.begin(); it != m_classes.end(); ++it) {
-        delete(*it);
-    }
-    for(auto it = m_structs.begin(); it != m_structs.end(); ++it) {
-        delete(*it);
-    }
-    for(auto it = m_imports.begin(); it != m_imports.end(); ++it) {
-        delete(*it);
-    }
+    for (auto& clazz : this->m_classes)
+        delete clazz;
 
     m_classes.clear();
     m_structs.clear();
@@ -42,46 +35,34 @@ File::~File()
 Class* File::get_class_by_id(unsigned int id)
 {
     DistributedType* dt = get_type_by_id(id);
-    if(dt == nullptr) {
+    if (dt == nullptr || dt->as_struct() == nullptr)
         return nullptr;
-    }
-    if(dt->as_struct() == nullptr) {
-        return nullptr;
-    }
+
     return dt->as_struct()->as_class();
 }
 const Class* File::get_class_by_id(unsigned int id) const
 {
     const DistributedType* dt = get_type_by_id(id);
-    if(dt == nullptr) {
+    if(dt == nullptr || dt->as_struct() == nullptr)
         return nullptr;
-    }
-    if(dt->as_struct() == nullptr) {
-        return nullptr;
-    }
+
     return dt->as_struct()->as_class();
 }
 // get_class_by_name returns the requested class or nullptr if there is no such class.
 Class* File::get_class_by_name(const std::string &name)
 {
     DistributedType* dt = get_type_by_name(name);
-    if(dt == nullptr) {
+    if(dt == nullptr || dt->as_struct() == nullptr)
         return nullptr;
-    }
-    if(dt->as_struct() == nullptr) {
-        return nullptr;
-    }
+
     return dt->as_struct()->as_class();
 }
 const Class* File::get_class_by_name(const std::string &name) const
 {
     const DistributedType* dt = get_type_by_name(name);
-    if(dt == nullptr) {
+    if(dt == nullptr || dt->as_struct() == nullptr)
         return nullptr;
-    }
-    if(dt->as_struct() == nullptr) {
-        return nullptr;
-    }
+
     return dt->as_struct()->as_class();
 }
 
@@ -176,20 +157,16 @@ uint32_t File::get_hash() const
 void File::generate_hash(HashGenerator& hashgen) const
 {
     hashgen.add_int(m_classes.size());
-    for(auto it = m_classes.begin(); it != m_classes.end(); ++it) {
-        (*it)->generate_hash(hashgen);
-    }
+    for(const auto& clazz : m_classes)
+        clazz->generate_hash(hashgen);
 
     hashgen.add_int(m_structs.size());
-    for(auto it = m_structs.begin(); it != m_structs.end(); ++it) {
-        (*it)->generate_hash(hashgen);
-    }
+    for(const auto& strukt : m_structs)
+        strukt->generate_hash(hashgen);
 
     hashgen.add_int(m_keywords.size());
-    for(auto it = m_keywords.begin(); it != m_keywords.end(); ++it) {
-        hashgen.add_string(*it);
-    }
+    for(const auto& keyword : m_keywords)
+        hashgen.add_string(keyword);
 }
-
 
 } // close namespace dclass

@@ -49,22 +49,13 @@ inline size_t File::get_num_types() const
 // get_type_by_id returns the requested type or nullptr if there is no such type.
 inline DistributedType* File::get_type_by_id(unsigned int id)
 {
-	if(id < m_types_by_id.size())
-	{
-		return m_types_by_id[id];
-	}
-
-	return nullptr;
+	return id < m_types_by_id.size() ? m_types_by_id[id] : nullptr;
 }
 inline const DistributedType* File::get_type_by_id(unsigned int id) const
 {
-	if(id < m_types_by_id.size())
-	{
-		return m_types_by_id[id];
-	}
-
-	return nullptr;
+	return id < m_types_by_id.size() ? m_types_by_id[id] : nullptr;
 }
+
 // get_type_by_name returns the requested type or nullptr if there is no such type.
 inline DistributedType* File::get_type_by_name(const std::string &name)
 {
@@ -90,22 +81,16 @@ inline const DistributedType* File::get_type_by_name(const std::string &name) co
 // get_field_by_id returns the request field or nullptr if there is no such field.
 inline Field* File::get_field_by_id(unsigned int id)
 {
-	if(id < m_fields_by_id.size())
-	{
-		return m_fields_by_id[id];
-	}
-
-	return nullptr;
+	return id < m_fields_by_id.size() ? m_fields_by_id[id] : nullptr;
 }
+
 inline const Field* File::get_field_by_id(unsigned int id) const
 {
-	if(id < m_fields_by_id.size())
-	{
-		return m_fields_by_id[id];
-	}
-
-	return nullptr;
+	return id < m_fields_by_id.size() ? m_fields_by_id[id] : nullptr;
 }
+
+// Field* File::operator[](unsigned int id)
+
 
 // get_num_imports returns the number of imports in the file.
 inline size_t File::get_num_imports() const
@@ -125,13 +110,11 @@ inline const Import* File::get_import(unsigned int n) const
 // has_keyword returns true if a keyword with the name <keyword> is declared in the file.
 inline bool File::has_keyword(const std::string& keyword) const
 {
-	for(auto it = m_keywords.begin(); it != m_keywords.end(); ++it)
-	{
-		if(*it == keyword)
-		{
+	for(const auto& kw : m_keywords) {
+		if(kw == keyword)
 			return true;
-		}
 	}
+
 	return false;
 }
 // get_num_keywords returns the number of keywords declared in the file.

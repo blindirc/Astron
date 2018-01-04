@@ -42,9 +42,8 @@ void Class::add_parent(Class *parent)
     m_fields.reserve(m_fields.size() + parent_fields.size());
 
     // Add all of the parents fields
-    for(auto it = parent_fields.begin(); it != parent_fields.end(); ++it) {
-        add_inherited_field(parent, *it);
-    }
+    for(const auto& field : parent_fields)
+        add_inherited_field(parent, field);
 }
 
 // add_child marks a class as a child of this class.
@@ -136,9 +135,8 @@ bool Class::add_field(Field *field)
     }
 
     // Tell our children about the new field
-    for(auto it = m_children.begin(); it != m_children.end(); ++it) {
-        (*it)->add_inherited_field(this, field);
-    }
+    for(const auto& child : m_children)
+        child->add_inherited_field(this, field);
 
     return true;
 }
