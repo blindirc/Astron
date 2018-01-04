@@ -71,7 +71,7 @@ class Datagram
     //     allows you to specify the capacity of the datagram ahead of time,
     //     this should be used when the exact size is known ahead of time for performance
     Datagram(dgsize_t capacity) : buf(new uint8_t[capacity]), buf_cap(capacity),
-    	buf_offset(0)
+        buf_offset(0)
     {
     }
     */
@@ -139,6 +139,14 @@ class Datagram
         add_control_header(message_type);
     }
 
+  private:
+    template<typename T>
+    void add_data_type(const unsigned offset, const T modifier)
+    {
+        check_add_length(offset);
+        *(T *)(buf + buf_offset) = modifier;
+        buf_offset += offset;
+    }
 
   public:
     static DatagramPtr create()
@@ -209,88 +217,67 @@ class Datagram
     // to be one of the values 0x00 (false) or 0x01 (true).
     void add_bool(const bool &v)
     {
-        if(v) add_uint8(1);
-        else add_uint8(0);
+        add_uint8(v ? 1 : 0);
     }
 
     // add_int8 adds a signed 8-bit integer value to the datagram.
     void add_int8(const int8_t &v)
     {
-        check_add_length(1);
-        *(int8_t *)(buf + buf_offset) = v;
-        buf_offset += 1;
+        add_data_type<int8_t>(1, v);
     }
 
     // add_int16 adds a signed 16-bit integer value to the datagram arranged in little-endian.
     void add_int16(const int16_t &v)
     {
-        check_add_length(2);
-        *(int16_t *)(buf + buf_offset) = swap_le(v);
-        buf_offset += 2;
+        add_data_type<int16_t>(2, swap_le(v));
     }
 
     // add_int32 adds a signed 32-bit integer value to the datagram arranged in little-endian.
     void add_int32(const int32_t &v)
     {
-        check_add_length(4);
-        *(int32_t *)(buf + buf_offset) = swap_le(v);
-        buf_offset += 4;
+        add_data_type<int32_t>(4, swap_le(v));
     }
 
     // add_int64 adds a signed 64-bit integer value to the datagram arranged in little-endian.
     void add_int64(const int64_t &v)
     {
-        check_add_length(8);
-        *(int64_t *)(buf + buf_offset) = swap_le(v);
-        buf_offset += 8;
+        add_data_type<int64_t>(8, swap_le(v));
     }
 
     // add_uint8 adds an unsigned 8-bit integer value to the datagram.
     void add_uint8(const uint8_t &v)
     {
-        check_add_length(1);
-        *(uint8_t *)(buf + buf_offset) = v;
-        buf_offset += 1;
+        add_data_type<uint8_t>(1, v);
     }
 
     // add_uint16 adds a unsigned 16-bit integer value to the datagram arranged in little-endian.
     void add_uint16(const uint16_t &v)
     {
-        check_add_length(2);
-        *(uint16_t *)(buf + buf_offset) = swap_le(v);
-        buf_offset += 2;
+        add_data_type<uint16_t>(2, swap_le(v));
     }
 
     // add_uint32 adds a unsigned 32-bit integer value to the datagram arranged in little-endian.
     void add_uint32(const uint32_t &v)
     {
-        check_add_length(4);
-        *(uint32_t *)(buf + buf_offset) = swap_le(v);
-        buf_offset += 4;
+        add_data_type<uint32_t>(4, swap_le(v));
     }
 
     // add_uint64 adds a unsigned 64-bit integer value to the datagram arranged in little-endian.
     void add_uint64(const uint64_t &v)
     {
-        check_add_length(8);
-        *(uint64_t *)(buf + buf_offset) = swap_le(v);
-        buf_offset += 8;
+        add_data_type<uint64_t>(8, swap_le(v));
     }
 
     // add_float32 adds a float (32-bit IEEE 754 floating point) value to the datagram.
     void add_float32(const float &v)
     {
-        check_add_length(4);
-        *(float *)(buf + buf_offset) = swap_le(v);
-        buf_offset += 4;
+        add_data_type<float>(4, swap_le(v));
     }
 
     // add_float64 adds a double (64-bit IEEE 754 floating point) value to the datagram.
     void add_float64(const double &v)
     {
-        check_add_length(8);
-        *(double *)(buf + buf_offset) = swap_le(v);
-        buf_offset += 8;
+        add_data_type<double>(8, swap_le(v));
     }
 
     // add_size adds a datagram or field length-tag to the datagram.
@@ -298,9 +285,7 @@ class Datagram
     //       to allow for future support of larger or small length limits.
     void add_size(const dgsize_t &v)
     {
-        check_add_length(sizeof(dgsize_t));
-        *(dgsize_t *)(buf + buf_offset) = swap_le(v);
-        buf_offset += sizeof(dgsize_t);
+        add_data_type<dgsize_t>(sizeof(dgsize_t), swap_le(v));
     }
 
     // add_channel adds a channel to the end of the datagram.
@@ -308,9 +293,7 @@ class Datagram
     //       to allow for future support of larger or smaller channel range limits.
     void add_channel(const channel_t &v)
     {
-        check_add_length(sizeof(channel_t));
-        *(channel_t *)(buf + buf_offset) = swap_le(v);
-        buf_offset += sizeof(channel_t);
+        add_data_type<channel_t>(sizeof(channel_t), swap_le(v));
     }
 
     // add_doid adds a distributed object id to the end of the datagram.
@@ -318,9 +301,7 @@ class Datagram
     //       to allow for future support of larger or smaller doid range limits.
     void add_doid(const doid_t &v)
     {
-        check_add_length(sizeof(doid_t));
-        *(doid_t *)(buf + buf_offset) = swap_le(v);
-        buf_offset += sizeof(doid_t);
+        add_data_type<doid_t>(sizeof(doid_t), swap_le(v));
     }
 
     // add_zone adds a zone id to the end of the datagram.
@@ -328,9 +309,7 @@ class Datagram
     //       to allow for future support of larger or smaller zone range limits.
     void add_zone(const zone_t &v)
     {
-        check_add_length(sizeof(zone_t));
-        *(zone_t *)(buf + buf_offset) = swap_le(v);
-        buf_offset += sizeof(zone_t);
+        add_data_type<zone_t>(sizeof(zone_t), swap_le(v));
     }
 
     // add_location adds a parent-zone pair to the datagram; it is provided for convenience,
@@ -448,9 +427,10 @@ class Datagram
     void add_server_header(const std::unordered_set<channel_t> &to, channel_t from, uint16_t message_type)
     {
         add_uint8(to.size());
-        for(auto it = to.begin(); it != to.end(); ++it) {
-            add_channel(*it);
-        }
+
+        for(const auto& channel : to)
+            add_channel(channel);
+
         add_channel(from);
         add_uint16(message_type);
     }
