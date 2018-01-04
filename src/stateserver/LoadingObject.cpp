@@ -118,99 +118,106 @@ void LoadingObject::finalize()
     terminate();
 }
 
+void LoadingObject::generate_from_db(DatagramIterator &dgi)
+{
+    // Don't care about these message any more if loaded
+    if(m_is_loaded)
+        return;
+
+    const uint32_t db_context = dgi.read_uint32();
+    if(db_context != m_context &&
+       m_valid_contexts.find(db_context) == m_valid_contexts.end()) {
+        m_log->warning() << "Received get_all_resp with incorrect context '"
+                         << db_context << "'.\n";
+        return;
+    }
+
+    m_log->trace() << "Received GetAllResp from database.\n";
+    m_is_loaded = true;
+
+    if(dgi.read_bool() != true) {
+        m_log->debug() << "Object not found in database.\n";
+        finalize();
+        return;
+    }
+
+    uint16_t dc_id = dgi.read_uint16();
+    const Class *r_dclass = g_dcf->get_class_by_id(dc_id);
+    if(!r_dclass) {
+        m_log->error() << "Received object from database with unknown dclass"
+                       << " - id:" << dc_id << std::endl;
+        finalize();
+        return;
+    }
+
+    if(m_dclass && r_dclass != m_dclass) {
+        m_log->error() << "Requested object of class '" << m_dclass->get_id()
+                       << "', but received class " << dc_id << std::endl;
+        finalize();
+        return;
+    }
+
+    // Get fields from database
+    if(!unpack_db_fields(dgi, r_dclass, m_required_fields, m_ram_fields)) {
+        m_log->error() << "Error while unpacking fields from database.\n";
+        finalize();
+        return;
+    }
+
+    auto has_field = [](const auto fields, const auto field) -> bool {
+        return fields.find(field) != fields.end();
+    };
+
+    // Add default values and updated values
+    const std::size_t dcc_field_count = r_dclass->get_num_fields();
+    for(std::size_t i = 0; i < dcc_field_count; ++i) {
+        const Field *const field = r_dclass->get_field(i);
+
+        if(field->as_molecular())
+            continue;
+
+        if(field->has_keyword("required")) {
+            if(has_field(this->m_field_updates, field)) {
+                m_required_fields[field] = m_field_updates[field];
+            } else if(!has_field(this->m_required_fields, field)) {
+                const std::string val = field->get_default_value();
+                m_required_fields[field] = std::vector<uint8_t>(val.begin(), val.end());
+            }
+        } else if(field->has_keyword("ram") && has_field(this->m_field_updates, field)) {
+            m_ram_fields[field] = m_field_updates[field];
+        }
+    }
+
+    // Create object on stateserver
+    DistributedObject *obj = new DistributedObject(m_dbss, m_dbss->m_db_channel, m_do_id,
+            m_parent_id, m_zone_id, r_dclass,
+            m_required_fields, m_ram_fields);
+
+    // Tell DBSS about object and handle datagram queue
+    // DistributedObject *objptr = obj.get();
+    m_dbss->receive_object(obj);
+    replay_datagrams(obj);
+
+    // Cleanup this loader
+    finalize();
+}
+
 void LoadingObject::handle_datagram(DatagramHandle in_dg, DatagramIterator &dgi)
 {
     /*channel_t sender =*/ dgi.read_channel(); // sender not used
     uint16_t msgtype = dgi.read_uint16();
     switch(msgtype) {
-    case DBSERVER_OBJECT_GET_ALL_RESP: {
-        if(m_is_loaded) {
-            break; // Don't care about these message any more if loaded
-        }
-
-        uint32_t db_context = dgi.read_uint32();
-        if(db_context != m_context &&
-           m_valid_contexts.find(db_context) == m_valid_contexts.end()) {
-            m_log->warning() << "Received get_all_resp with incorrect context '"
-                             << db_context << "'.\n";
-            break;
-        }
-
-        m_log->trace() << "Received GetAllResp from database.\n";
-        m_is_loaded = true;
-
-        if(dgi.read_bool() != true) {
-            m_log->debug() << "Object not found in database.\n";
-            finalize();
-            break;
-        }
-
-        uint16_t dc_id = dgi.read_uint16();
-        const Class *r_dclass = g_dcf->get_class_by_id(dc_id);
-        if(!r_dclass) {
-            m_log->error() << "Received object from database with unknown dclass"
-                           << " - id:" << dc_id << std::endl;
-            finalize();
-            break;
-        }
-
-        if(m_dclass && r_dclass != m_dclass) {
-            m_log->error() << "Requested object of class '" << m_dclass->get_id()
-                           << "', but received class " << dc_id << std::endl;
-            finalize();
-            break;
-        }
-
-        // Get fields from database
-        if(!unpack_db_fields(dgi, r_dclass, m_required_fields, m_ram_fields)) {
-            m_log->error() << "Error while unpacking fields from database.\n";
-            finalize();
-            break;
-        }
-
-        // Add default values and updated values
-        const std::size_t dcc_field_count = r_dclass->get_num_fields();
-        for(std::size_t i = 0; i < dcc_field_count; ++i) {
-            const Field *const field = r_dclass->get_field(i);
-            if(!field->as_molecular()) {
-                if(field->has_keyword("required")) {
-                    if(m_field_updates.find(field) != m_field_updates.end()) {
-                        m_required_fields[field] = m_field_updates[field];
-                    } else if(m_required_fields.find(field) == m_required_fields.end()) {
-                        const std::string val = field->get_default_value();
-                        m_required_fields[field] = std::vector<uint8_t>(val.begin(), val.end());
-                    }
-                } else if(field->has_keyword("ram")) {
-                    if(m_field_updates.find(field) != m_field_updates.end()) {
-                        m_ram_fields[field] = m_field_updates[field];
-                    }
-                }
-            }
-        }
-
-        // Create object on stateserver
-        DistributedObject *obj = new DistributedObject(m_dbss, m_dbss->m_db_channel, m_do_id,
-                m_parent_id, m_zone_id, r_dclass,
-                m_required_fields, m_ram_fields);
-
-        // Tell DBSS about object and handle datagram queue
-        // DistributedObject *objptr = obj.get();
-        m_dbss->receive_object(obj);
-        replay_datagrams(obj);
-
-        // Cleanup this loader
-        finalize();
+    case DBSERVER_OBJECT_GET_ALL_RESP:
+        this->generate_from_db(dgi);
         break;
-    }
     case DBSS_OBJECT_ACTIVATE_WITH_DEFAULTS:
-    case DBSS_OBJECT_ACTIVATE_WITH_DEFAULTS_OTHER: {
+    case DBSS_OBJECT_ACTIVATE_WITH_DEFAULTS_OTHER:
         // Don't cache these messages in the queue, they are received and
         // handled by the DBSS.  Since the object is already loading they
         // are simply ignored (the DBSS may generate a warning/error).
         break;
-    }
-    default: {
+    default:
         m_datagram_queue.push_back(in_dg);
-    }
+        break;
     }
 }

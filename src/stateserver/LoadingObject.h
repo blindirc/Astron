@@ -35,6 +35,9 @@ class LoadingObject final : public MDParticipantInterface
     std::list<DatagramHandle> m_datagram_queue;
     bool m_is_loaded;
 
+    // generate_from_db generates a distributed object from the database
+    void generate_from_db(DatagramIterator& dgi);
+
     // send_get_object makes the initial request to the database for the object data
     void inline send_get_object(doid_t do_id);
     // replay_datagrams while replay the datagrams for a loaded distributed object
