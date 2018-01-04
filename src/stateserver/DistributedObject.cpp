@@ -5,7 +5,7 @@
 #include "dclass/dc/Class.h"
 #include "dclass/dc/Field.h"
 #include "dclass/dc/MolecularField.h"
-using namespace std;
+
 using dclass::Class;
 using dclass::Field;
 using dclass::MolecularField;
@@ -17,9 +17,9 @@ DistributedObject::DistributedObject(StateServer *stateserver, doid_t do_id, doi
     m_dclass(dclass), m_ai_channel(INVALID_CHANNEL), m_owner_channel(INVALID_CHANNEL),
     m_ai_explicitly_set(false), m_parent_synchronized(false), m_next_context(0)
 {
-    stringstream name;
+    std::stringstream name;
     name << dclass->get_name() << "(" << do_id << ")";
-    m_log = new LogCategory("object", name.str());
+    m_log = std::make_unique<LogCategory>("object", name.str());
     set_con_name(name.str());
 
     for(unsigned int i = 0; i < m_dclass->get_num_fields(); ++i) {
@@ -45,7 +45,7 @@ DistributedObject::DistributedObject(StateServer *stateserver, doid_t do_id, doi
 
     subscribe_channel(do_id);
 
-    m_log->debug() << "Object created..." << endl;
+    m_log->debug() << "Object created..." << std::endl;
 
     dgi.seek_payload(); // Seek back to front of payload, to read sender
     handle_location_change(parent_id, zone_id, dgi.read_channel());
@@ -59,9 +59,9 @@ DistributedObject::DistributedObject(StateServer *stateserver, channel_t sender,
     m_dclass(dclass), m_ai_channel(INVALID_CHANNEL), m_owner_channel(INVALID_CHANNEL),
     m_ai_explicitly_set(false), m_next_context(0)
 {
-    stringstream name;
+    std::stringstream name;
     name << dclass->get_name() << "(" << do_id << ")";
-    m_log = new LogCategory("object", name.str());
+    m_log = std::make_unique<LogCategory>("object", name.str());
 
     m_required_fields = required;
     m_ram_fields = ram;
@@ -69,14 +69,6 @@ DistributedObject::DistributedObject(StateServer *stateserver, channel_t sender,
     subscribe_channel(do_id);
     handle_location_change(parent_id, zone_id, sender);
     wake_children();
-}
-
-DistributedObject::~DistributedObject()
-{
-    if(m_log) {
-        delete m_log;
-        m_log = nullptr;
-    }
 }
 
 void DistributedObject::append_required_data(DatagramPtr dg, bool client_only, bool also_owner)
@@ -98,24 +90,24 @@ void DistributedObject::append_required_data(DatagramPtr dg, bool client_only, b
 void DistributedObject::append_other_data(DatagramPtr dg, bool client_only, bool also_owner)
 {
     if(client_only) {
-        list<const Field*> broadcast_fields;
-        for(auto it = m_ram_fields.begin(); it != m_ram_fields.end(); ++it) {
-            if(it->first->has_keyword("broadcast") || it->first->has_keyword("clrecv")
-               || (also_owner && it->first->has_keyword("ownrecv"))) {
-                broadcast_fields.push_back(it->first);
+        std::list<const Field*> broadcast_fields;
+        for(const auto& [field, data] : m_ram_fields) {
+            if(field->has_keyword("broadcast") || field->has_keyword("clrecv")
+               || (also_owner && field->has_keyword("ownrecv"))) {
+                broadcast_fields.push_back(field);
             }
         }
 
         dg->add_uint16(broadcast_fields.size());
-        for(auto it = broadcast_fields.begin(); it != broadcast_fields.end(); ++it) {
-            dg->add_uint16((*it)->get_id());
-            dg->add_data(m_ram_fields[*it]);
+        for(const auto& field : broadcast_fields) {
+            dg->add_uint16(field->get_id());
+            dg->add_data(m_ram_fields[field]);
         }
     } else {
         dg->add_uint16(m_ram_fields.size());
-        for(auto it = m_ram_fields.begin(); it != m_ram_fields.end(); ++it) {
-            dg->add_uint16(it->first->get_id());
-            dg->add_data(it->second);
+        for(const auto& [field, data] : m_ram_fields) {
+            dg->add_uint16(field->get_id());
+            dg->add_data(data);
         }
     }
 }
@@ -129,9 +121,9 @@ void DistributedObject::send_interest_entry(channel_t location, uint32_t context
                                       STATESERVER_OBJECT_ENTER_INTEREST_WITH_REQUIRED);
     dg->add_uint32(context);
     append_required_data(dg, true);
-    if(m_ram_fields.size()) {
+    if(m_ram_fields.size())
         append_other_data(dg, true);
-    }
+
     route_datagram(dg);
 }
 
@@ -141,9 +133,9 @@ void DistributedObject::send_location_entry(channel_t location)
                                       STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED_OTHER :
                                       STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED);
     append_required_data(dg, true);
-    if(m_ram_fields.size()) {
+    if(m_ram_fields.size())
         append_other_data(dg, true);
-    }
+
     route_datagram(dg);
 }
 
@@ -153,9 +145,9 @@ void DistributedObject::send_ai_entry(channel_t ai)
                                       STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED_OTHER :
                                       STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED);
     append_required_data(dg);
-    if(m_ram_fields.size()) {
+    if(m_ram_fields.size())
         append_other_data(dg);
-    }
+
     route_datagram(dg);
 }
 
@@ -165,9 +157,9 @@ void DistributedObject::send_owner_entry(channel_t owner)
                                       STATESERVER_OBJECT_ENTER_OWNER_WITH_REQUIRED_OTHER :
                                       STATESERVER_OBJECT_ENTER_OWNER_WITH_REQUIRED);
     append_required_data(dg, true, true);
-    if(m_ram_fields.size()) {
+    if(m_ram_fields.size())
         append_other_data(dg, true, true);
-    }
+
     route_datagram(dg);
 }
 
@@ -177,17 +169,15 @@ void DistributedObject::handle_location_change(doid_t new_parent, zone_t new_zon
     zone_t old_zone = m_zone_id;
 
     // Set of channels that must be notified about location_change
-    unordered_set<channel_t> targets;
+    std::unordered_set<channel_t> targets;
 
     // Notify AI of changing location
-    if(m_ai_channel) {
+    if(m_ai_channel)
         targets.insert(m_ai_channel);
-    }
 
     // Notify Owner of changing location
-    if(m_owner_channel) {
+    if(m_owner_channel)
         targets.insert(m_owner_channel);
-    }
 
     if(new_parent == m_do_id) {
         m_log->warning() << "Object cannot be parented to itself.\n";
@@ -243,21 +233,19 @@ void DistributedObject::handle_location_change(doid_t new_parent, zone_t new_zon
     m_parent_synchronized = false;
 
     // Send enter location message
-    if(new_parent) {
+    if(new_parent)
         send_location_entry(location_as_channel(new_parent, new_zone));
-    }
 }
 
 void DistributedObject::handle_ai_change(channel_t new_ai, channel_t sender,
         bool channel_is_explicit)
 {
     channel_t old_ai = m_ai_channel;
-    if(new_ai == old_ai) {
+    if(new_ai == old_ai)
         return;
-    }
 
     // Set of channels that must be notified about ai_change
-    unordered_set<channel_t> targets;
+    std::unordered_set<channel_t> targets;
 
     if(old_ai) {
         targets.insert(old_ai);
@@ -285,7 +273,7 @@ void DistributedObject::handle_ai_change(channel_t new_ai, channel_t sender,
 
 void DistributedObject::annihilate(channel_t sender, bool notify_parent)
 {
-    unordered_set<channel_t> targets;
+    std::unordered_set<channel_t> targets;
     if(m_parent_id) {
         targets.insert(location_as_channel(m_parent_id, m_zone_id));
         // Leave parent on explicit delete ram
@@ -297,12 +285,13 @@ void DistributedObject::annihilate(channel_t sender, bool notify_parent)
             route_datagram(dg);
         }
     }
-    if(m_owner_channel) {
+
+    if(m_owner_channel)
         targets.insert(m_owner_channel);
-    }
-    if(m_ai_channel) {
+
+    if(m_ai_channel)
         targets.insert(m_ai_channel);
-    }
+
     DatagramPtr dg = Datagram::create(targets, sender, STATESERVER_OBJECT_DELETE_RAM);
     dg->add_doid(m_do_id);
     route_datagram(dg);
@@ -334,7 +323,7 @@ void DistributedObject::wake_children()
     route_datagram(dg);
 }
 
-void DistributedObject::save_field(const Field *field, const vector<uint8_t> &data)
+void DistributedObject::save_field(const Field *field, const std::vector<uint8_t> &data)
 {
     if(field->has_keyword("required")) {
         m_required_fields[field] = data;
@@ -345,7 +334,7 @@ void DistributedObject::save_field(const Field *field, const vector<uint8_t> &da
 
 bool DistributedObject::handle_one_update(DatagramIterator &dgi, channel_t sender)
 {
-    vector<uint8_t> data;
+    std::vector<uint8_t> data;
     uint16_t field_id = dgi.read_uint16();
     const Field *field = m_dclass->get_field_by_id(field_id);
     if(!field) {
@@ -370,7 +359,7 @@ bool DistributedObject::handle_one_update(DatagramIterator &dgi, channel_t sende
         dgi.seek(field_start);
         int n = molecular->get_num_fields();
         for(int i = 0; i < n; ++i) {
-            vector<uint8_t> field_data;
+            std::vector<uint8_t> field_data;
             const Field *atomic = molecular->get_field(i);
             dgi.unpack_field(atomic, field_data);
             save_field(atomic, field_data);
@@ -379,16 +368,16 @@ bool DistributedObject::handle_one_update(DatagramIterator &dgi, channel_t sende
         save_field(field, data);
     }
 
-    unordered_set<channel_t> targets;
-    if(field->has_keyword("broadcast")) {
+    std::unordered_set<channel_t> targets;
+    if(field->has_keyword("broadcast"))
         targets.insert(location_as_channel(m_parent_id, m_zone_id));
-    }
-    if(field->has_keyword("airecv") && m_ai_channel && m_ai_channel != sender) {
+
+    if(field->has_keyword("airecv") && m_ai_channel && m_ai_channel != sender)
         targets.insert(m_ai_channel);
-    }
-    if(field->has_keyword("ownrecv") && m_owner_channel && m_owner_channel != sender) {
+
+    if(field->has_keyword("ownrecv") && m_owner_channel && m_owner_channel != sender)
         targets.insert(m_owner_channel);
-    }
+
     if(targets.size()) { // TODO: Review this for efficiency?
         DatagramPtr dg = Datagram::create(targets, sender, STATESERVER_OBJECT_SET_FIELD);
         dg->add_doid(m_do_id);
@@ -682,7 +671,7 @@ void DistributedObject::handle_datagram(DatagramHandle, DatagramIterator &dgi)
         uint16_t field_count = dgi.read_uint16();
 
         // Read our requested fields into a sorted set
-        set<uint16_t> requested_fields;
+        std::set<uint16_t> requested_fields;
         for(int i = 0; i < field_count; ++i) {
             uint16_t field_id = dgi.read_uint16();
             if(!requested_fields.insert(field_id).second) {
@@ -699,13 +688,15 @@ void DistributedObject::handle_datagram(DatagramHandle, DatagramIterator &dgi)
         bool success = true;
         uint16_t fields_found = 0;
         DatagramPtr raw_fields = Datagram::create();
-        for(auto it = requested_fields.begin(); it != requested_fields.end(); ++it) {
-            uint16_t field_id = *it;
-            uint16_t length = raw_fields->size();
+        for(const auto& field : requested_fields) {
+            const uint16_t field_id = field;
+            const uint16_t length = raw_fields->size();
+
             if(!handle_one_get(raw_fields, field_id, true)) {
                 success = false;
                 break;
             }
+
             if(raw_fields->size() > length) {
                 fields_found++;
             }
@@ -828,22 +819,17 @@ void DistributedObject::handle_datagram(DatagramHandle, DatagramIterator &dgi)
 
     case STATESERVER_GET_ACTIVE_ZONES: {
         uint32_t context = dgi.read_uint32();
+        std::unordered_set<zone_t> zones;
 
-        std::unordered_set<zone_t> keys;
+        for(const auto& [zone, data] : this->m_zone_objects)
+            zones.insert(zone);
 
-        for(auto kv : m_zone_objects) {
-            keys.insert(kv.first);
-        }
-
-        DatagramPtr dg = Datagram::create(sender, m_do_id, STATESERVER_GET_ACTIVE_ZONES_RESP);
-
+        DatagramPtr dg = Datagram::create(sender, this->m_do_id, STATESERVER_GET_ACTIVE_ZONES_RESP);
         dg->add_uint32(context);
-        dg->add_uint16(keys.size());
+        dg->add_uint16(zones.size());
 
-        std::unordered_set<zone_t>::iterator it;
-        for(it = keys.begin(); it != keys.end(); ++it) {
-            dg->add_zone(*it);
-        }
+        for(const auto& zone : zones)
+            dg->add_zone(zone);
 
         route_datagram(dg);
         break;

@@ -20,7 +20,7 @@ Client::Client(ConfigNode, ClientAgent* client_agent) :
     stringstream name;
     name << "Client (" << m_allocated_channel << ")";
 
-    m_log_owner = std::unique_ptr<LogCategory>(new LogCategory("client", name.str()));
+    m_log_owner = std::make_unique<LogCategory>("client", name.str());
 
     m_log = m_log_owner.get();
 
@@ -731,7 +731,7 @@ void Client::handle_datagram(DatagramHandle in_dg, DatagramIterator &dgi)
         // N.B.: This object visible might be still visible through an interest.
         // We don't have to touch it, just remove the ownership
         handle_remove_ownership(do_id);
-        m_owned_objects.erase(do_id);        
+        m_owned_objects.erase(do_id);
     }
     break;
     default:

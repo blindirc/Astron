@@ -169,25 +169,21 @@ void DBStateServer::handle_delete_disk(channel_t sender, DatagramIterator& dgi)
     }
 
     // If object exists broadcast the delete message
-    auto obj_keyval = m_objs.find(do_id);
-    if(obj_keyval != m_objs.end()) {
-        DistributedObject* obj = obj_keyval->second;
+    if(const auto obj_keyval = m_objs.find(do_id); obj_keyval != m_objs.end()) {
+        const DistributedObject *const obj = obj_keyval->second;
         std::unordered_set<channel_t> targets;
 
         // Add location to broadcast
-        if(obj->get_location()) {
+        if(obj->get_location())
             targets.insert(obj->get_location());
-        }
 
         // Add AI to broadcast
-        if(obj->get_ai()) {
+        if(obj->get_ai())
             targets.insert(obj->get_ai());
-        }
 
         // Add owner to broadcast
-        if(obj->get_owner()) {
+        if(obj->get_owner())
             targets.insert(obj->get_owner());
-        }
 
         // Build and send datagram
         DatagramPtr dg = Datagram::create(targets, sender, DBSS_OBJECT_DELETE_DISK);
@@ -204,7 +200,7 @@ void DBStateServer::handle_delete_disk(channel_t sender, DatagramIterator& dgi)
 
 void DBStateServer::handle_set_field(DatagramIterator &dgi)
 {
-    doid_t do_id = dgi.read_doid();
+    const doid_t do_id = dgi.read_doid();
     if(m_loading.find(do_id) != m_loading.end()) {
         // Ignore this message for now, it'll be bounced back to us
         // from the loading object if it succeeds or fails at loading.
@@ -228,7 +224,7 @@ void DBStateServer::handle_set_field(DatagramIterator &dgi)
 
 void DBStateServer::handle_set_fields(DatagramIterator &dgi)
 {
-    doid_t do_id = dgi.read_doid();
+    const doid_t do_id = dgi.read_doid();
     if(m_loading.find(do_id) != m_loading.end()) {
         // Ignore this message for now, it'll be bounced back to us
         // from the loading object if it succeeds or fails at loading.
@@ -391,9 +387,9 @@ void DBStateServer::handle_get_fields(channel_t sender, DatagramIterator &dgi)
         m_context_datagrams[db_context]->add_uint32(r_context);
         m_context_datagrams[db_context]->add_bool(true);
         m_context_datagrams[db_context]->add_uint16(ram_fields.size() + db_fields.size());
-        for(const auto& it : ram_fields) {
-            m_context_datagrams[db_context]->add_uint16(it->get_id());
-            m_context_datagrams[db_context]->add_data(it->get_default_value());
+        for(const auto& field : ram_fields) {
+            m_context_datagrams[db_context]->add_uint16(field->get_id());
+            m_context_datagrams[db_context]->add_data(field->get_default_value());
         }
 
         // Send query to database
@@ -401,8 +397,8 @@ void DBStateServer::handle_get_fields(channel_t sender, DatagramIterator &dgi)
         dg->add_uint32(db_context);
         dg->add_doid(r_do_id);
         dg->add_uint16(db_fields.size());
-        for(const auto& it : db_fields) {
-            dg->add_uint16(it->get_id());
+        for(const auto& field : db_fields) {
+            dg->add_uint16(field->get_id());
         }
         route_datagram(dg);
     } else { // If no database fields exist
@@ -410,9 +406,9 @@ void DBStateServer::handle_get_fields(channel_t sender, DatagramIterator &dgi)
         dg->add_uint32(r_context);
         dg->add_bool(true);
         dg->add_uint16(ram_fields.size());
-        for(const auto& it : ram_fields) {
-            dg->add_uint16(it->get_id());
-            dg->add_data(it->get_default_value());
+        for(const auto& field : ram_fields) {
+            dg->add_uint16(field->get_id());
+            dg->add_data(field->get_default_value());
         }
         route_datagram(dg);
     }
@@ -559,9 +555,9 @@ void DBStateServer::handle_get_all_resp(DatagramIterator& dgi)
 
     // Add ram fields to datagram
     dg->add_uint16(ram_fields.size());
-    for(const auto& it : ram_fields) {
-        dg->add_uint16(it.first->get_id());
-        dg->add_data(it.second);
+    for(const auto& [field, data] : ram_fields) {
+        dg->add_uint16(field->get_id());
+        dg->add_data(data);
     }
 
     // Send response back to caller

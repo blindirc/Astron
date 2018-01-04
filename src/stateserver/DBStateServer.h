@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include <unordered_set>
 #include "StateServer.h"
 #include "core/objtypes.h"
@@ -50,7 +51,7 @@ class DBStateServer final : public StateServer
 
     // receive_object gives responsibility of a DistributedObject to the dbss
     // primarily used by a LoadingObject when the object is finished loading.
-    void receive_object(DistributedObject* obj);
+    void receive_object(DistributedObject *obj);
     // discard_loader tells the dbss to forget about a LoadingObject, either
     // because the object finished loading, or because the object failed to load.
     void discard_loader(doid_t do_id);

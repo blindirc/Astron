@@ -65,7 +65,7 @@ ClientAgent::ClientAgent(RoleConfig roleconfig) : Role(roleconfig), m_net_accept
 
     stringstream ss;
     ss << "Client Agent (" << bind_addr.get_rval(roleconfig) << ")";
-    m_log = std::unique_ptr<LogCategory>(new LogCategory("clientagent", ss.str()));
+    m_log = std::make_unique<LogCategory>("clientagent", ss.str());
 
     // We need to get the client type...
     ConfigNode client = clientagent_config.get_child_node(ca_client_config, roleconfig);
@@ -103,7 +103,7 @@ ClientAgent::ClientAgent(RoleConfig roleconfig) : Role(roleconfig), m_net_accept
                                        std::placeholders::_1,
                                        std::placeholders::_2,
                                        std::placeholders::_3);
-        m_net_acceptor = std::unique_ptr<TcpAcceptor>(new TcpAcceptor(io_service, callback));
+        m_net_acceptor = std::make_unique<TcpAcceptor>(io_service, callback);
     }
 
     // Handle SSL requested, but some information missing

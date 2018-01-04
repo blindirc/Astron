@@ -17,7 +17,7 @@ LoadingObject::LoadingObject(DBStateServer *stateserver, doid_t do_id,
 {
     std::stringstream name;
     name << "LoadingObject(doid: " << do_id << ", db: " << m_dbss->m_db_channel << ")";
-    m_log = std::unique_ptr<LogCategory>(new LogCategory("dbobject", name.str()));
+    m_log = std::make_unique<LogCategory>("dbobject", name.str());
     set_con_name(name.str());
 
     subscribe_channel(do_id);
@@ -32,7 +32,7 @@ LoadingObject::LoadingObject(DBStateServer *stateserver, doid_t do_id, doid_t pa
 {
     std::stringstream name;
     name << "LoadingObject(doid: " << do_id << ", db: " << m_dbss->m_db_channel << ")";
-    m_log = std::unique_ptr<LogCategory>(new LogCategory("dbobject", name.str()));
+    m_log = std::make_unique<LogCategory>("dbobject", name.str());
     set_con_name(name.str());
 
     subscribe_channel(do_id);
@@ -169,15 +169,15 @@ void LoadingObject::handle_datagram(DatagramHandle in_dg, DatagramIterator &dgi)
         }
 
         // Add default values and updated values
-        std::size_t dcc_field_count = r_dclass->get_num_fields();
-        for(std::size_t i{}; i < dcc_field_count; ++i) {
-            const Field *field = r_dclass->get_field(i);
+        const std::size_t dcc_field_count = r_dclass->get_num_fields();
+        for(std::size_t i = 0; i < dcc_field_count; ++i) {
+            const Field *const field = r_dclass->get_field(i);
             if(!field->as_molecular()) {
                 if(field->has_keyword("required")) {
                     if(m_field_updates.find(field) != m_field_updates.end()) {
                         m_required_fields[field] = m_field_updates[field];
                     } else if(m_required_fields.find(field) == m_required_fields.end()) {
-                        std::string val = field->get_default_value();
+                        const std::string val = field->get_default_value();
                         m_required_fields[field] = std::vector<uint8_t>(val.begin(), val.end());
                     }
                 } else if(field->has_keyword("ram")) {
@@ -189,11 +189,12 @@ void LoadingObject::handle_datagram(DatagramHandle in_dg, DatagramIterator &dgi)
         }
 
         // Create object on stateserver
-        DistributedObject* obj = new DistributedObject(m_dbss, m_dbss->m_db_channel, m_do_id,
+        DistributedObject *obj = new DistributedObject(m_dbss, m_dbss->m_db_channel, m_do_id,
                 m_parent_id, m_zone_id, r_dclass,
                 m_required_fields, m_ram_fields);
 
         // Tell DBSS about object and handle datagram queue
+        // DistributedObject *objptr = obj.get();
         m_dbss->receive_object(obj);
         replay_datagrams(obj);
 

@@ -1,6 +1,11 @@
-#pragma once
+#ifndef ASTRON_DISTRIBUTED_OBJECT_H
+#define ASTRON_DISTRIBUTED_OBJECT_H
+
 #include "StateServer.h"
 #include "core/objtypes.h"
+#include "core/Logger.h"
+
+#include <memory>
 
 class DistributedObject : public MDParticipantInterface
 {
@@ -12,9 +17,9 @@ class DistributedObject : public MDParticipantInterface
     DistributedObject(StateServer *stateserver, channel_t sender, doid_t do_id,
                       doid_t parent_id, zone_t zone_id, const dclass::Class *dclass,
                       UnorderedFieldValues& req_fields, FieldValues& ram_fields);
-    ~DistributedObject();
+    ~DistributedObject() = default;
 
-    virtual void handle_datagram(DatagramHandle in_dg, DatagramIterator &dgi);
+    void handle_datagram(DatagramHandle in_dg, DatagramIterator &dgi) override;
 
     inline doid_t get_id() const
     {
@@ -55,7 +60,7 @@ class DistributedObject : public MDParticipantInterface
     bool m_parent_synchronized;
     uint32_t m_next_context;
     std::unordered_map<zone_t, std::unordered_set<doid_t>> m_zone_objects;
-    LogCategory *m_log;
+    std::unique_ptr<LogCategory> m_log;
 
     void append_required_data(DatagramPtr dg, bool client_only = false, bool also_owner = false);
     void append_other_data(DatagramPtr dg, bool client_only = false, bool also_owner = false);
@@ -78,3 +83,5 @@ class DistributedObject : public MDParticipantInterface
     bool handle_one_get(DatagramPtr out, uint16_t field_id,
                         bool succeed_if_unset = false, bool is_subfield = false);
 };
+
+#endif
