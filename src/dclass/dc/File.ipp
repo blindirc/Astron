@@ -125,13 +125,11 @@ inline const Import* File::get_import(unsigned int n) const
 // has_keyword returns true if a keyword with the name <keyword> is declared in the file.
 inline bool File::has_keyword(const std::string& keyword) const
 {
-	for(auto it = m_keywords.begin(); it != m_keywords.end(); ++it)
-	{
-		if(*it == keyword)
-		{
+	for(const auto kw : m_keywords) {
+		if(kw == keyword)
 			return true;
-		}
 	}
+
 	return false;
 }
 // get_num_keywords returns the number of keywords declared in the file.

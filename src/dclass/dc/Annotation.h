@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 
+#include "KeywordList.h"
+
 namespace dclass   // open namespace dclass
 {
 
@@ -17,7 +19,7 @@ enum struct AnnotationType {
 
 // An Annotation specifies a run-time analyses on a
 // dclass
-struct Annotation final
+struct Annotation final : public KeywordList
 {
     AnnotationType m_annotation_type = AnnotationType::INVALID;
     std::string m_annotation_name;

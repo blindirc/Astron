@@ -57,6 +57,25 @@ Annotation::check_size_lt()
 
     // Walk through each field
     for (const auto& field : this->m_fields) {
+        bool want_check = false;
+
+        // Only calculate fields we are interested in
+        if (this->get_num_keywords() > 0) {
+            for (size_t ii = 0; ii < this->get_num_keywords(); ii++) {
+                const auto kw = this->get_keyword(ii);
+
+                if (field->has_keyword(kw)) {
+                    want_check = true;
+                    break;
+                }
+            }
+        } else {
+            want_check = true;
+        }
+
+
+        if (!want_check) continue;
+
         DistributedType *type = field->get_type();
         bytes += type ? type->get_size() : 0;
 

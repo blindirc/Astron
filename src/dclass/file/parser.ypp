@@ -55,6 +55,7 @@
 	static Class* current_class = nullptr;
 	static Struct* current_struct = nullptr;
 
+
 	// Stack of distributed types for parsing values
 	struct TypeAndDepth
 	{
@@ -545,13 +546,16 @@ class_fields
 	;
 
 annotation_field
-	: KW_ANN_CHECK_SIZE_LT UNSIGNED_INTEGER '*' small_unsigned_integer
+	: KW_ANN_CHECK_SIZE_LT UNSIGNED_INTEGER '*' small_unsigned_integer keyword_list
 	{
 		auto *annotation = new Annotation();
 		annotation->m_annotation_type = AnnotationType::CHECK_SIZE_LT;
 		annotation->m_annotation_name = std::string{"check_size_lt"};
 		annotation->m_dclass_name = current_class->get_name();
 		annotation->check_max_bytes = $2 * $4;
+
+		for(const auto& kw : $5)
+			annotation->add_keyword(kw);
 
 		current_class->add_annotation(annotation);
 	}
