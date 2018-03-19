@@ -40,9 +40,6 @@ enum Type {
     T_STRUCT,
     T_METHOD,
 
-    /* Annotation */
-    T_ANNOTATION,
-
     // New additions should be added at the end to prevent the file hash from changing.
 
     T_INVALID
