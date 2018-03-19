@@ -101,6 +101,8 @@ class File
     // generate_hash accumulates the properties of this file into the hash.
     virtual void generate_hash(HashGenerator& hashgen) const;
 
+    bool validate_annotations() const;
+
   private:
     // add_field gives the field a unique id within the file.
     void add_field(Field *field);

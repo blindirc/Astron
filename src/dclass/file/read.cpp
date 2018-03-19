@@ -17,7 +17,10 @@ bool append(File* f, istream &in, const string &filename)
     init_file_parser(in, filename, *f);
     run_parser();
     cleanup_parser();
-    return (parser_error_count() == 0);
+    if (parser_error_count() != 0)
+        return false;
+
+    return f->validate_annotations();
 }
 bool append(File* f, const string &filename)
 {
@@ -37,21 +40,15 @@ File* read(istream &in, const string &filename)
 {
     File* f = new File();
     bool ok = append(f, in, filename);
-    if(ok) {
-        return f;
-    }
 
-    return nullptr;
+    return ok ? f : nullptr;
 }
 File* read(const string &filename)
 {
     File* f = new File();
     bool ok = append(f, filename);
-    if(ok) {
-        return f;
-    }
 
-    return nullptr;
+    return ok ? f : nullptr;
 }
 
 

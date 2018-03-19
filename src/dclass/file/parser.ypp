@@ -14,6 +14,7 @@
 	#include "dc/ArrayType.h"
 	#include "dc/Struct.h"
 	#include "dc/Class.h"
+	#include "dc/Annotation.h"
 	#include "dc/Field.h"
 	#include "dc/Method.h"
 	#include "dc/Parameter.h"
@@ -147,6 +148,9 @@
 %token KW_TYPEDEF
 %token KW_KEYWORD
 
+// Distributed Class annotations
+%token KW_ANN_CHECK_SIZE_LT
+
 // Type Keywords
 %token KW_INT8
 %token KW_INT16
@@ -177,6 +181,7 @@
 %type <u.dfield> class_field
 %type <u.dfield> struct_field
 %type <u.dfield> defined_field
+%type <u.dfield> annotation_field
 %type <u.dclass> defined_class
 %type <u.dtype> defined_type
 %type <u.dtype> builtin_array_type
@@ -500,6 +505,7 @@ defined_class
 
 class_fields
 	: empty
+	| annotation_field ';'
 	| class_fields ';'
 	| class_fields class_field ';'
 	{
@@ -538,6 +544,19 @@ class_fields
 	}
 	;
 
+annotation_field
+	: KW_ANN_CHECK_SIZE_LT UNSIGNED_INTEGER '*' small_unsigned_integer
+	{
+		auto *annotation = new Annotation();
+		annotation->m_annotation_type = AnnotationType::CHECK_SIZE_LT;
+		annotation->m_annotation_name = std::string{"check_size_lt"};
+		annotation->m_dclass_name = current_class->get_name();
+		annotation->check_max_bytes = $2 * $4;
+
+		current_class->add_annotation(annotation);
+	}
+	;
+
 class_field
 	: named_field keyword_list
 	{
@@ -556,10 +575,8 @@ class_field
 		}
 
 		// Add the keywords to the class
-		for(auto it = $2.begin(); it != $2.end(); ++it)
-		{
-			$1->add_keyword(*it);
-		}
+		for(const auto& kw : $2)
+			$1->add_keyword(kw);
 
 		$$ = $1;
 	}

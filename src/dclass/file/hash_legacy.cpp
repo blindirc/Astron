@@ -273,6 +273,7 @@ void hash_legacy_type(HashGenerator& hashgen, const DistributedType* type)
         break;
     }
 
+    case T_ANNOTATION:
     case T_VARSTRING:
     case T_STRING: {
         if(type->get_alias() == "string") {

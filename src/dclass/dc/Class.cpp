@@ -38,19 +38,39 @@ void Class::add_parent(Class *parent)
     m_parents.push_back(parent);
 
     // We know there will be this many fields, so allocate ahead of time
-    const vector<Field*>& parent_fields = parent->m_fields;
+    const auto& parent_fields = parent->m_fields;
     m_fields.reserve(m_fields.size() + parent_fields.size());
 
     // Add all of the parents fields
-    for(auto it = parent_fields.begin(); it != parent_fields.end(); ++it) {
-        add_inherited_field(parent, *it);
-    }
+    for(const auto& field : parent_fields)
+        this->add_inherited_field(parent, field);
 }
 
 // add_child marks a class as a child of this class.
 void Class::add_child(Class* child)
 {
     m_children.push_back(child);
+}
+
+// Annotations allow you to sanitize your dclass by
+// performing a static analysis of your distributed classes
+// properties.
+bool Class::add_annotation(Annotation *annotation)
+{
+    // TODO - check for duplicates
+    this->m_base_annotations.push_back(annotation);
+
+    return true;
+}
+
+bool Class::validate_annotations() const
+{
+    for (const auto& annotation : this->m_base_annotations) {
+        if (!annotation->validate_dclass(this->m_base_fields))
+            return false;
+    }
+
+    return true;
 }
 
 // add_field adds the newly-allocated field to the class.  The class becomes
@@ -136,9 +156,8 @@ bool Class::add_field(Field *field)
     }
 
     // Tell our children about the new field
-    for(auto it = m_children.begin(); it != m_children.end(); ++it) {
-        (*it)->add_inherited_field(this, field);
-    }
+    for(const auto& child : m_children)
+        child->add_inherited_field(this, field);
 
     return true;
 }

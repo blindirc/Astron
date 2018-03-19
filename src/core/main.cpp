@@ -165,11 +165,10 @@ int main(int argc, char *argv[])
     dcf->add_keyword("ownrecv");
     dcf->add_keyword("airecv");
     vector<string> dc_file_names = dc_files.get_val();
-    for(auto it = dc_file_names.begin(); it != dc_file_names.end(); ++it) {
-        bool ok = dclass::append(dcf, *it);
-        if(!ok) {
-            mainlog.fatal() << "Could not read DC file " << *it << endl;
-            return 1;
+    for(const auto& dc_file : dc_file_names) {
+        if(!dclass::append(dcf, dc_file)) {
+            mainlog.fatal() << "Could not read DC file " << dc_file << endl;
+            return EXIT_FAILURE;
         }
     }
     g_dcf = dcf;

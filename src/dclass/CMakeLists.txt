@@ -31,6 +31,7 @@ add_library(dclass
 	util/HashGenerator.cpp
 
 	# Distributed Object Model
+	dc/Annotation.cpp
 	dc/DistributedType.cpp
 	dc/NumericType.cpp
 	dc/ArrayType.cpp

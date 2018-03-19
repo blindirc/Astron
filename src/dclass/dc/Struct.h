@@ -4,6 +4,7 @@
 #include <vector>        // std::vector
 #include <unordered_map> // std::unordered_map
 
+#include "Annotation.h"
 #include "DistributedType.h"
 namespace dclass   // open namespace
 {

@@ -51,9 +51,16 @@ class Class : public Struct
     // add_field adds a new Field to the class.
     virtual bool add_field(Field* field);
 
+    // add_annotation adds a new Annotation to this class.
+    bool add_annotation(Annotation *annotation);
+
+    bool validate_annotations() const;
+    size_t annotation_count() const { return this->m_base_annotations.size(); }
+
     // generate_hash accumulates the properties of this type into the hash.
     virtual void generate_hash(HashGenerator &hashgen) const;
 
+    std::vector<Annotation*> m_base_annotations;
   private:
     // add_child marks a class as a child of this class.
     void add_child(Class* child);

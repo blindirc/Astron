@@ -585,6 +585,11 @@ REALNUM     ([-]?(([0-9]+[.])|([0-9]*[.][0-9]+))([eE][+-]?[0-9]+)?)
 	return KW_CHAR;
 }
 
+"@check_size_lt" {
+	accept();
+	return KW_ANN_CHECK_SIZE_LT;
+}
+
 {INTEGERNUM} {
 	// An unsigned integer number.
 	accept();

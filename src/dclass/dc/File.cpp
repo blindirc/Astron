@@ -5,6 +5,7 @@
 #include "dc/Field.h"
 
 #include "File.h"
+#include <iostream>
 namespace dclass   // open namespace
 {
 
@@ -19,15 +20,9 @@ File::File()
 //destructor
 File::~File()
 {
-    for(auto it = m_classes.begin(); it != m_classes.end(); ++it) {
-        delete(*it);
-    }
-    for(auto it = m_structs.begin(); it != m_structs.end(); ++it) {
-        delete(*it);
-    }
-    for(auto it = m_imports.begin(); it != m_imports.end(); ++it) {
-        delete(*it);
-    }
+    for(auto& obj : m_classes) delete obj;
+    for(auto& obj : m_structs) delete obj;
+    for(auto& obj : m_imports) delete obj;
 
     m_classes.clear();
     m_structs.clear();
@@ -83,6 +78,23 @@ const Class* File::get_class_by_name(const std::string &name) const
         return nullptr;
     }
     return dt->as_struct()->as_class();
+}
+
+// Validates all annotations of every class
+bool File::validate_annotations() const
+{
+    for (const auto& clazz : this->m_classes) {
+        if (clazz->annotation_count() == 0) continue;
+
+        if (!clazz->validate_annotations()) {
+            std::cerr << "annotation: dclass " << clazz->get_name() << " failed!\n";
+            return false;
+        } else {
+            std::cout << "annotation: dclass " << clazz->get_name() << " passed!\n";
+        }
+    }
+
+    return true;
 }
 
 // add_class adds the newly-allocated class to the file.
