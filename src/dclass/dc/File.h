@@ -27,8 +27,7 @@ class File
 {
 
   public:
-    File(); // constructor
-    ~File(); // destructor
+    virtual ~File();
 
     // get_num_classes returns the number of classes in the file
     inline size_t get_num_classes() const;

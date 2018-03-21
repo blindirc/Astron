@@ -39,16 +39,24 @@ bool append(File* f, const string &filename)
 File* read(istream &in, const string &filename)
 {
     File* f = new File();
-    bool ok = append(f, in, filename);
 
-    return ok ? f : nullptr;
+    if (append(f, in, filename) == false) {
+        delete f;
+        return nullptr;
+    }
+
+    return f;
 }
 File* read(const string &filename)
 {
     File* f = new File();
-    bool ok = append(f, filename);
 
-    return ok ? f : nullptr;
+    if (append(f, filename) == false) {
+        delete f;
+        return nullptr;
+    }
+
+    return f;
 }
 
 

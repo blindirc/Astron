@@ -12,11 +12,6 @@ namespace dclass   // open namespace
 
 typedef std::unordered_map<std::string, DistributedType*>::value_type TypeName;
 
-// constructor
-File::File()
-{
-}
-
 //destructor
 File::~File()
 {
