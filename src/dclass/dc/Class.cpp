@@ -174,11 +174,11 @@ void Class::add_inherited_field(Class* parent, Field* field)
     auto prev_field = m_fields_by_name.find(field->get_name());
     if(prev_field != m_fields_by_name.end()) {
         Struct* parentB = prev_field->second->get_struct();
-        for(auto it = m_parents.begin(); it != m_parents.end(); ++it) {
-            if((*it) == parentB) {
+        for(const auto& it : m_parents) {
+            if(it == parentB) {
                 // The early parent's field takes precedence over the new field
                 return;
-            } else if((*it) == parent) {
+            } else if(it == parent) {
                 // This parent was added before the later parent, so shadow its field
                 shadow_field(prev_field->second);
             }
@@ -212,9 +212,8 @@ void Class::add_inherited_field(Class* parent, Field* field)
     }
 
     // Tell our children about the new field
-    for(auto it = m_children.begin(); it != m_children.end(); ++it) {
-        (*it)->add_inherited_field(this, field);
-    }
+    for(const auto& child : m_children)
+        child->add_inherited_field(this, field);
 }
 
 // shadow_field removes the field from all of the Class's field accessors,
@@ -235,11 +234,9 @@ void Class::shadow_field(Field* field)
     }
 
     // Tell our children to shadow the field
-    for(auto it = m_children.begin(); it != m_children.end(); ++it) {
-        Class* child = (*it);
+    for(const auto& child : m_children)
         if(child->get_field_by_id(field->get_id()) == field) {
             child->shadow_field(field);
-        }
     }
 }
 
@@ -254,22 +251,19 @@ void Class::generate_hash(HashGenerator& hashgen) const
     // We shouldn't hash our children because they aren't part of this class
     // and that relationship will be hashed when each child is hashed.
     hashgen.add_int(m_parents.size());
-    for(auto it = m_parents.begin(); it != m_parents.end(); ++it) {
-        hashgen.add_int((*it)->get_id());
-    }
+    for(const auto& parent : m_parents)
+        hashgen.add_int(parent->get_id());
 
     /* Hash our constructor */
-    if(m_constructor != nullptr) {
+    if(m_constructor != nullptr)
         m_constructor->generate_hash(hashgen);
-    }
 
     /* Hash our base fields */
     // We don't hash our inherited fields because thats implicit in the hash of our parents; also,
     // it is a bad idea to hash any thing we're not considered the owner of (could cause looping).
     hashgen.add_int(m_base_fields.size());
-    for(auto it = m_fields.begin(); it != m_fields.end(); ++it) {
-        (*it)->generate_hash(hashgen);
-    }
+    for(const auto& field : m_fields)
+        field->generate_hash(hashgen);
 }
 
 
